@@ -26,6 +26,19 @@ const MAX_HEARTS = 5;
 const PLACEHOLDER_IMAGE_DATA_URL =
   "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMjQzNTY5Ii8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjRjQ3RjgyIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9InVybCgjZykiIHJ4PSIyNiIvPjxjaXJjbGUgY3g9Ijc1IiBjeT0iMTIwIiByPSI0MCIgZmlsbD0iI2ZmZiIgZmlsbC1vcGFjaXR5PSIwLjkiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSIxOTAiIHI9IjUwIiBmaWxsPSIjZmZmIiBmaWxsLW9wYWNpdHk9IjAuOSIgc3Ryb2tlPSIjRkZGIiBzdHJva2Utd2lkdGg9IjQiLz48dGV4dCB4PSI1MCUiIHk9IjUwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iI0ZGRiIgZm9udC1zaXplPSI0MCIgZm9udC1mYW1pbHk9IkFyZWFsLCBzeXN0ZW0tdWkiPkJVWjwvdGV4dD48L3N2Zz4=";
 
+const getRandomTileQuestions = (count: number): TileQuestion[] => {
+  const pool = TILE_QUESTIONS.slice();
+
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const temp = pool[i];
+    pool[i] = pool[j];
+    pool[j] = temp;
+  }
+
+  return pool.slice(0, count);
+};
+
 const buildTiles = (questions: TileQuestion[]): TileState[] =>
   questions.map((question, index) => ({
     index,
@@ -60,10 +73,10 @@ export const usePuzzle = () => {
   const initialisePuzzle = useCallback(
     (image: string) => {
       const totalTiles = GRID_SIZE * GRID_SIZE;
-      const limitedQuestions = TILE_QUESTIONS.slice(0, totalTiles);
+      const randomisedQuestions = getRandomTileQuestions(totalTiles);
 
       setImageDataUrl(image);
-      setTiles(buildTiles(limitedQuestions));
+      setTiles(buildTiles(randomisedQuestions));
       setHearts(MAX_HEARTS);
       setIsGameOver(false);
       setIsComplete(false);
