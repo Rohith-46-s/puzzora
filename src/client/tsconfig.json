@@ -1,0 +1,20 @@
+// TypeScript config for all web view main thread code.
+{
+  "extends": "../../tools/tsconfig-base.json",
+  "compilerOptions": {
+    // Target the browser.
+    "customConditions": ["browser"],
+
+    "lib": ["DOM", "ES2023", "esnext.disposable"],
+
+    "outDir": "../../dist/types/client",
+
+    // React
+    "jsx": "react-jsx",
+
+    "tsBuildInfoFile": "../../dist/client/tsconfig.tsbuildinfo"
+  },
+  "include": ["**/*", "**/*.json"],
+  "exclude": ["**/*.test.ts"],
+  "references": [{ "path": "../shared" }]
+}
