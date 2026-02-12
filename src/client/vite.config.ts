@@ -12,8 +12,8 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       input: {
-        splash: 'splash.html',
-        game: 'game.html',
+        splash: './splash.html',
+        game: './game.html',
       },
       output: {
         entryFileNames: '[name].js',

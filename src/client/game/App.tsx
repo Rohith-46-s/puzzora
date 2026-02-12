@@ -1,24 +1,31 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useRef } from "react";
 import { HomeScreen } from "./screens/Home";
 import { UploadScreen } from "./screens/Upload";
 import { PuzzleScreen } from "./screens/Puzzle";
 import { CompleteScreen } from "./screens/Complete";
-import { usePuzzle } from "./hooks/usePuzzle";
+import { usePuzzle, type MatrixSize } from "./hooks/usePuzzle";
+import { playCompletionSound } from "./utils/sound";
 import "./styles/game.css";
 
+const COMPLETION_CINEMATIC_MS = 1200;
+
 type AppProps = {
-  // Devvit passes a context object, but this UI is
-  // intentionally client-only and does not depend on it.
-  // Kept for compatibility with `src/devvit.tsx`.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   context?: any;
 };
 
 export type ScreenId = "home" | "upload" | "puzzle" | "complete";
 
+interface Question {
+  id: string;
+  questionText: string;
+  options: { text: string; isCorrect: boolean }[];
+}
+
 const App: React.FC<AppProps> = () => {
   const [screen, setScreen] = useState<ScreenId>("home");
+  const [selectedMatrixSize, setSelectedMatrixSize] = useState<MatrixSize>(3);
 
+  const completionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const {
     puzzle,
     startDefaultPuzzle,
@@ -28,15 +35,10 @@ const App: React.FC<AppProps> = () => {
     resetPuzzle,
   } = usePuzzle();
 
-  // Ensure we never land on the puzzle or complete screens without a puzzle.
-  useEffect(() => {
-    if (!puzzle && (screen === "puzzle" || screen === "complete")) {
-      setScreen("home");
-    }
-  }, [puzzle, screen]);
+  const safeScreen: ScreenId = screen || "home";
 
   const handlePlayDefault = () => {
-    startDefaultPuzzle();
+    startDefaultPuzzle(selectedMatrixSize, 'default');
     setScreen("puzzle");
   };
 
@@ -44,8 +46,10 @@ const App: React.FC<AppProps> = () => {
     setScreen("upload");
   };
 
-  const handleCreateFromUpload = (imageDataUrl: string) => {
-    createPuzzleFromImage(imageDataUrl);
+  const handleCreateFromUpload = (imageUrl: string, gridSize: number, questions: Question[] | null) => {
+    // Create puzzle locally - this is for the uploader to play only
+    // Images are NOT stored on server for other users
+    createPuzzleFromImage(imageUrl, gridSize as MatrixSize, questions ?? undefined);
     setScreen("puzzle");
   };
 
@@ -60,13 +64,19 @@ const App: React.FC<AppProps> = () => {
     }
 
     if (result === "completed") {
-      setScreen("complete");
+      playCompletionSound();
+      if (completionTimeoutRef.current) clearTimeout(completionTimeoutRef.current);
+      completionTimeoutRef.current = setTimeout(() => {
+        setScreen("complete");
+        completionTimeoutRef.current = null;
+      }, COMPLETION_CINEMATIC_MS);
     }
   };
 
   const handlePlayAnother = () => {
+    const size = puzzle?.matrixSize ?? selectedMatrixSize;
     resetPuzzle();
-    startDefaultPuzzle();
+    startDefaultPuzzle(size, 'default');
     setScreen("puzzle");
   };
 
@@ -74,50 +84,82 @@ const App: React.FC<AppProps> = () => {
     setScreen("home");
   };
 
-  return (
-    <div className="pz-root">
-      {screen === "home" && (
+  try {
+    return (
+      <div className="pz-root">
+        {safeScreen === "home" && (
+          <HomeScreen
+            matrixSize={selectedMatrixSize}
+            onMatrixSizeChange={setSelectedMatrixSize}
+            onPlayPuzzle={handlePlayDefault}
+            onUploadImage={handleGoToUpload}
+          />
+        )}
+
+        {safeScreen === "upload" && (
+          <UploadScreen
+            onBack={handleBackToHome}
+            onCreatePuzzle={handleCreateFromUpload}
+          />
+        )}
+
+        {safeScreen === "puzzle" && puzzle && (
+          <PuzzleScreen
+            puzzle={puzzle}
+            onAnswerTile={handleTileAnswer}
+            onRestart={handleGameOverRestart}
+            onBack={handleBackToHome}
+          />
+        )}
+
+        {safeScreen === "puzzle" && !puzzle && (
+          <HomeScreen
+            matrixSize={selectedMatrixSize}
+            onMatrixSizeChange={setSelectedMatrixSize}
+            onPlayPuzzle={handlePlayDefault}
+            onUploadImage={handleGoToUpload}
+          />
+        )}
+
+        {safeScreen === "complete" && puzzle && (
+          <CompleteScreen puzzle={puzzle} onPlayAnother={handlePlayAnother} />
+        )}
+
+        {safeScreen === "complete" && !puzzle && (
+          <HomeScreen
+            matrixSize={selectedMatrixSize}
+            onMatrixSizeChange={setSelectedMatrixSize}
+            onPlayPuzzle={handlePlayDefault}
+            onUploadImage={handleGoToUpload}
+          />
+        )}
+
+        {safeScreen !== "home" &&
+          safeScreen !== "upload" &&
+          safeScreen !== "puzzle" &&
+          safeScreen !== "complete" && (
+            <HomeScreen
+              matrixSize={selectedMatrixSize}
+              onMatrixSizeChange={setSelectedMatrixSize}
+              onPlayPuzzle={handlePlayDefault}
+              onUploadImage={handleGoToUpload}
+            />
+          )}
+      </div>
+    );
+  } catch (error) {
+    console.error("App render error:", error);
+    return (
+      <div className="pz-root">
         <HomeScreen
+          matrixSize={selectedMatrixSize}
+          onMatrixSizeChange={setSelectedMatrixSize}
           onPlayPuzzle={handlePlayDefault}
           onUploadImage={handleGoToUpload}
         />
-      )}
-
-      {screen === "upload" && (
-        <UploadScreen
-          onBack={handleBackToHome}
-          onCreatePuzzle={handleCreateFromUpload}
-        />
-      )}
-
-      {screen === "puzzle" && puzzle && (
-        <PuzzleScreen
-          puzzle={puzzle}
-          onAnswerTile={handleTileAnswer}
-          onRestart={handleGameOverRestart}
-          onBack={handleBackToHome}
-        />
-      )}
-
-      {screen === "puzzle" && !puzzle && (
-        <HomeScreen
-          onPlayPuzzle={handlePlayDefault}
-          onUploadImage={handleGoToUpload}
-        />
-      )}
-
-      {screen === "complete" && puzzle && (
-        <CompleteScreen puzzle={puzzle} onPlayAnother={handlePlayAnother} />
-      )}
-
-      {screen === "complete" && !puzzle && (
-        <HomeScreen
-          onPlayPuzzle={handlePlayDefault}
-          onUploadImage={handleGoToUpload}
-        />
-      )}
-    </div>
-  );
+      </div>
+    );
+  }
 };
 
 export default App;
